@@ -6,6 +6,8 @@ data class Tick(
     val peak: Double,
     /** Time between the two main sounds of the beat (unlock to drop) in ms, or null if not resolvable. */
     val lockDropMs: Double?,
+    /** Running beat number since the session start (missed beats counted); even = tick, odd = tock. */
+    val beat: Long = 0,
 )
 
 data class Kpis(
@@ -38,6 +40,13 @@ data class GrapherConfig(
     val lowHz: Int = 2000,
     val highHz: Int = 8000,
     val sensitivity: Double = 4.0,
+    /** Automatic gain control; when off, [gainDb] is applied as a fixed amplification. */
+    val agc: Boolean = true,
+    val gainDb: Double = 0.0,
+    /** Play the filtered, amplified microphone signal through the speaker (use headphones to avoid feedback). */
+    val listen: Boolean = false,
+    /** Delay of the played sound; a long delay turns acoustic feedback into a fading echo. */
+    val listenDelayMs: Int = 500,
     val calibrationSPerDay: Double = 0.0,
     val keepScreenOn: Boolean = true,
 )

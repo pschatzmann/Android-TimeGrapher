@@ -17,6 +17,10 @@ class ConfigStore(context: Context) {
             lowHz = j.optInt("low", d.lowHz),
             highHz = j.optInt("high", d.highHz),
             sensitivity = j.optDouble("sens", d.sensitivity),
+            agc = j.optBoolean("agc", d.agc),
+            gainDb = j.optDouble("gain", d.gainDb),
+            listen = j.optBoolean("listen", d.listen),
+            listenDelayMs = j.optInt("delay", d.listenDelayMs),
             calibrationSPerDay = j.optDouble("cal", d.calibrationSPerDay),
             keepScreenOn = j.optBoolean("awake", d.keepScreenOn),
         )
@@ -26,6 +30,7 @@ class ConfigStore(context: Context) {
         val j = JSONObject()
             .put("bph", c.bph).put("lift", c.liftAngleDeg).put("window", c.windowSec)
             .put("low", c.lowHz).put("high", c.highHz).put("sens", c.sensitivity)
+            .put("agc", c.agc).put("gain", c.gainDb).put("listen", c.listen).put("delay", c.listenDelayMs)
             .put("cal", c.calibrationSPerDay).put("awake", c.keepScreenOn)
         prefs.edit().putString("config", j.toString()).apply()
     }

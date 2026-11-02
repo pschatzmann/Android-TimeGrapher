@@ -15,11 +15,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pschatzmann.timegrapher.TimeGrapherEngine
-import com.pschatzmann.timegrapher.TimeGrapherService
 import kotlin.math.abs
 
 private fun fmt(v: Double?, digits: Int, unit: String = ""): String =
@@ -35,7 +33,6 @@ fun LiveScreen(vm: TimeGrapherEngine, requestPermissions: () -> Unit) {
     val error by vm.error.collectAsStateWithLifecycle()
     val cfg by vm.config.collectAsStateWithLifecycle()
     val vol by vm.volume.collectAsStateWithLifecycle()
-    val ctx = LocalContext.current
 
     Column(
         Modifier.verticalScroll(rememberScrollState()).padding(16.dp),
@@ -47,10 +44,6 @@ fun LiveScreen(vm: TimeGrapherEngine, requestPermissions: () -> Unit) {
                 Text("Microphone permission is needed to hear the ticks.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Button(onClick = requestPermissions) { Text("Grant permission") }
             } else {
-                Button(
-                    onClick = { if (running) TimeGrapherService.stop(ctx) else TimeGrapherService.start(ctx) },
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text(if (running) "Stop" else "Start") }
                 LinearProgressIndicator(progress = { (level * 20).coerceIn(0.0, 1.0).toFloat() }, modifier = Modifier.fillMaxWidth())
                 error?.let { Text(it, color = Rose) }
             }

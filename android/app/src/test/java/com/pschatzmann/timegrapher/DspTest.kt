@@ -39,9 +39,11 @@ class DspTest {
         }
     }
 
-    private fun detect(sig: FloatArray): List<Tick> {
+    private fun detect(sig: FloatArray, agc: Boolean = false, gainDb: Double = 0.0): List<Tick> {
         val ticks = ArrayList<Tick>()
         val det = TickDetector(fs, 2000, 8000, 4.0) { ticks += it }
+        det.agc = agc
+        det.manualGainDb = gainDb
         var pos = 0
         while (pos < sig.size) {
             val n = minOf(1024, sig.size - pos)
@@ -49,6 +51,33 @@ class DspTest {
             pos += n
         }
         return ticks
+    }
+
+    private fun weak() = synth(28800, 20).also { for (i in it.indices) it[i] *= 0.004f }
+
+    @Test fun weakSignalIsDetectedWithAndWithoutGain() {
+        assertEquals(156.0, detect(weak()).size.toDouble(), 5.0)
+        assertEquals(156.0, detect(weak(), gainDb = 30.0).size.toDouble(), 5.0)
+    }
+
+    @Test fun thresholdFollowsSensitivity() {
+        fun threshold(sens: Double): Double {
+            val det = TickDetector(fs, 2000, 8000, sens) { }
+            val sig = synth(28800, 5)
+            det.process(sig, sig.size)
+            return det.threshold
+        }
+        assertEquals(2.0, threshold(8.0) / threshold(4.0), 0.1)
+    }
+
+    @Test fun agcAmplifiesWeakSignal() {
+        assertEquals(156.0, detect(weak(), agc = true).size.toDouble(), 8.0)
+    }
+
+    @Test fun agcDoesNotAmplifyNoise() {
+        val rnd = Random(2)
+        val noise = FloatArray(30 * fs) { (rnd.nextGaussian() * 0.0005).toFloat() }
+        assertEquals(0.0, detect(noise, agc = true).size.toDouble(), 3.0)
     }
 
     @Test fun detectsAllBeats() {

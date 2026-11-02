@@ -1,4 +1,4 @@
-# TimeGrapher
+# Time Grapher
 
 An Android app that turns your phone into a timegrapher for mechanical clocks and watches. It listens to the ticks through the microphone, shows the key figures live and charts them over time. The design follows [Android-Time-Services](https://github.com/pschatzmann/Android-Time-Services).
 
@@ -12,7 +12,7 @@ An Android app that turns your phone into a timegrapher for mechanical clocks an
 
 ## Documentation
 
-The documentation is in the [project wiki](https://github.com/pschatzmann/Android-TimeGrapher/wiki/Home) (sources in [wiki/](wiki/)):
+The documentation is in the [project wiki](https://github.com/pschatzmann/Android-TimeGrapher/wiki/Home):
 
 - [User manual](https://github.com/pschatzmann/Android-TimeGrapher/wiki/User-Manual) (a screenshot and description of every tab)
 - [Features](https://github.com/pschatzmann/Android-TimeGrapher/wiki/Features)

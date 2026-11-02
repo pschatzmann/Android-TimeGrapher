@@ -5,6 +5,7 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -47,7 +48,7 @@ class TickDetector(
     private val sampleRate: Int,
     lowHz: Int,
     highHz: Int,
-    private val sensitivity: Double,
+    sensitivity: Double,
     private val onTick: (Tick) -> Unit,
 ) {
     private val hp = Biquad.highPass(sampleRate.toDouble(), lowHz.toDouble())
@@ -58,7 +59,24 @@ class TickDetector(
     private val captureLen = (0.030 * sampleRate).toInt()
     private val minSeparation = (0.0015 * sampleRate).toInt()
     private val warmup = (0.5 * sampleRate).toLong()
-    private val minThreshold = 0.002
+    private val minThreshold = 0.0001
+    private val agcRelease = kotlin.math.exp(-1.0 / (3.0 * sampleRate))             // ~3 s peak hold decay
+    private val agcRise = 1.0 - kotlin.math.exp(-1.0 / (1.0 * sampleRate))          // ~1 s gain increase
+    private val agcTarget = 0.5
+    private val agcMaxGain = 1000.0                                                  // 60 dB
+    private val agcGate = 8.0   // only raise the gain while peaks stand this far above the noise floor
+
+    /** Threshold as a multiple of the noise floor; may be changed while running. */
+    @Volatile var sensitivity = sensitivity
+
+    /** Automatic gain control keeps the filtered peaks near a fixed level; otherwise [manualGainDb] applies. */
+    @Volatile var agc = false
+    @Volatile var manualGainDb = 0.0
+
+    /** Gain currently applied to the filtered signal, in dB. */
+    val gainDb: Double get() = 20 * kotlin.math.log10(gain)
+    private var gain = 1.0
+    private var agcEnv = 0.0
 
     private var index = 0L
     private var smooth = 0.0
@@ -78,12 +96,19 @@ class TickDetector(
     /** Largest filtered level since the last call, for the volume chart. */
     fun takeBlockPeak(): Double { val p = blockPeak; blockPeak = 0.0; return p }
 
-    fun process(samples: FloatArray, count: Int) {
-        for (i in 0 until count) step(samples[i].toDouble())
+    /** Processes [count] samples; when [out] is given it receives the filtered, amplified signal (clipped to +-1). */
+    fun process(samples: FloatArray, count: Int, out: FloatArray? = null) {
+        for (i in 0 until count) {
+            step(samples[i].toDouble())
+            if (out != null) out[i] = lastOut.toFloat().coerceIn(-1f, 1f)
+        }
     }
+    private var lastOut = 0.0
 
     private fun step(x: Double) {
-        val y = lp.process(hp.process(x))
+        val f = lp.process(hp.process(x))
+        val y = f * applyGain(abs(f))
+        lastOut = y
         smooth += smoothAlpha * (abs(y) - smooth)
         level = max(smooth, level * 0.9999)
         if (smooth > blockPeak) blockPeak = smooth
@@ -92,6 +117,7 @@ class TickDetector(
         if (capturing) {
             val k = (index - captureStart).toInt()
             capture[k] = smooth
+            trackFloorClamped()
             if (k == captureLen - 1) finishCapture(threshold)
         } else {
             if (index < warmup) {
@@ -100,12 +126,38 @@ class TickDetector(
                 capturing = true
                 captureStart = index
                 capture[0] = smooth
+                trackFloorClamped()
             } else {
                 floor += floorAlpha * (smooth - floor)
             }
             noiseFloor = floor
         }
         index++
+    }
+
+    /**
+     * Keeps the floor following the noise while a beat is being captured. Without it a floor that falls behind a
+     * rising level (e.g. AGC gain increasing) would never recover, because every capture ends in a new trigger.
+     * The input is clamped so the beat itself hardly moves the floor.
+     */
+    private fun trackFloorClamped() {
+        floor += floorAlpha * (min(smooth, max(3 * floor, 1e-6)) - floor)
+    }
+
+    private fun applyGain(a: Double): Double {
+        if (!agc) {
+            gain = Math.pow(10.0, manualGainDb / 20)
+            agcEnv = 0.0
+            return gain
+        }
+        agcEnv = max(a, agcEnv * agcRelease)
+        val wanted = (agcTarget / max(agcEnv, 1e-9)).coerceIn(1.0, agcMaxGain)
+        // pure noise must not be amplified up to the target, it would then trigger the detector at random
+        val signal = index >= warmup && agcEnv * gain > agcGate * floor
+        val before = gain
+        gain = if (wanted < gain) wanted else if (signal) gain + agcRise * (wanted - gain) else gain
+        floor *= gain / before   // the floor is in amplified units; a gain change must not look like a noise change
+        return gain
     }
 
     private fun finishCapture(threshold: Double) {

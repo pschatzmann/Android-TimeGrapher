@@ -10,6 +10,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DarkMode
@@ -17,10 +18,13 @@ import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -34,11 +38,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.pschatzmann.timegrapher.ui.AppTheme
 import com.pschatzmann.timegrapher.ui.Amber
-import com.pschatzmann.timegrapher.ui.Chip
 import com.pschatzmann.timegrapher.ui.Emerald
 import com.pschatzmann.timegrapher.ui.LiveScreen
 import com.pschatzmann.timegrapher.ui.SettingsScreen
@@ -74,6 +79,8 @@ private fun AppRoot(vm: TimeGrapherEngine) {
     var screen by rememberSaveable { mutableStateOf(Screen.Live) }
     val dark by vm.darkTheme.collectAsStateWithLifecycle()
     val running by vm.running.collectAsStateWithLifecycle()
+    val mic by vm.micGranted.collectAsStateWithLifecycle()
+    val ctx = LocalContext.current
 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
         vm.refreshPermissions()
@@ -91,7 +98,14 @@ private fun AppRoot(vm: TimeGrapherEngine) {
             TopAppBar(
                 title = { Text(stringResource(R.string.app_name), fontSize = 18.sp, maxLines = 1) },
                 actions = {
-                    Chip(if (running) "LISTENING" else "IDLE", if (running) Emerald else Amber)
+                    Button(
+                        onClick = {
+                            if (!mic) requestPermissions()
+                            else if (running) TimeGrapherService.stop(ctx) else TimeGrapherService.start(ctx)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = if (running) Emerald else MaterialTheme.colorScheme.primary),
+                        contentPadding = PaddingValues(horizontal = 20.dp),
+                    ) { Text(if (running) "Stop" else "Start") }
                     IconButton(onClick = { vm.toggleTheme() }) {
                         Icon(if (dark) Icons.Default.LightMode else Icons.Default.DarkMode, "Toggle theme")
                     }
