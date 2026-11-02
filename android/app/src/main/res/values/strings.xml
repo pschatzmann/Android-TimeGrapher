@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">TimeGrapher</string>
+    <string name="nav_live">Live</string>
+    <string name="nav_trends">Trends</string>
+    <string name="nav_settings">Settings</string>
+</resources>
